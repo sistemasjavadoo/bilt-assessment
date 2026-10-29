@@ -12,6 +12,24 @@ export function buildViewModel(result, member) {
     (member.pointsThisMonth / member.monthlyCap) * 100,
   );
 
+  if (result.outcome === "DUPLICATE") {
+    return {
+      title: "Duplicate event skipped",
+      description: "This payment was already processed. No points were added.",
+      tone: "neutral",
+      progressPercent,
+    };
+  }
+
+  if (result.outcome === "CAPPED") {
+    return {
+      title: "Monthly cap reached",
+      description: "You've earned the maximum points for this month.",
+      tone: "warning",
+      progressPercent,
+    };
+  }
+
   return {
     title: `${numberFormatter.format(result.pointsAwarded)} points credited`,
     description: "Your rent payment was processed successfully.",
