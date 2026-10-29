@@ -29,7 +29,7 @@ public class RewardsEngine {
     }
 
     public PointsResult processPayment(PaymentEvent event, MemberAccount member) {
-        if (processedEventStore.isDuplicate(event.getEventId())) {
+        if (!processedEventStore.markProcessed(event.getEventId())) {
             return new PointsResult(member.getMemberId(), 0, ProcessingOutcome.DUPLICATE);
         }
 
@@ -38,12 +38,13 @@ public class RewardsEngine {
                 basePoints, member.getCurrentStreakMonths());
 
         YearMonth month = YearMonth.from(event.getPaymentDate());
-        long alreadyEarnedThisMonth = member.getPointsForMonth(month);
-        long remainingCap = Math.max(0, MONTHLY_POINTS_CAP - alreadyEarnedThisMonth);
-        long pointsToAward = Math.min(pointsWithBonus, remainingCap);
-
-        member.addPointsForMonth(month, pointsToAward);
-        processedEventStore.markProcessed(event.getEventId());
+        long pointsToAward;
+        synchronized (member) {
+            long alreadyEarnedThisMonth = member.getPointsForMonth(month);
+            long remainingCap = Math.max(0, MONTHLY_POINTS_CAP - alreadyEarnedThisMonth);
+            pointsToAward = Math.min(pointsWithBonus, remainingCap);
+            member.addPointsForMonth(month, pointsToAward);
+        }
 
         ProcessingOutcome outcome = pointsToAward == 0
                 ? ProcessingOutcome.CAPPED
